@@ -52,7 +52,7 @@ jobs:
         with:
           repository: Moduna-AI/qcp
           ref: main
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          token: ${{ github.token }}
           path: tap
 
       - name: Compute GitHub Source URL and sha256
