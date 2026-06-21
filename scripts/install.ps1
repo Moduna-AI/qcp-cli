@@ -1,6 +1,6 @@
 # Installer for qcp (Query Companion) on Windows.
 # Usage (PowerShell):
-#   irm https://raw.githubusercontent.com/your-org/qcp/main/scripts/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/Moduna-AI/qcp/main/scripts/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 

@@ -1,5 +1,5 @@
 # Homebrew formula for qcp.
-# Intended to live in a tap repo, e.g. your-org/homebrew-qcp/Formula/qcp.rb
+# Intended to live in a tap repo, e.g. Moduna-AI/homebrew-qcp/Formula/qcp.rb
 #
 # The CI release workflow updates `url` and `sha256` automatically on each
 # tagged release (see .github/workflows/release.yml -> update-homebrew job).

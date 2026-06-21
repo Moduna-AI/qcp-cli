@@ -6,7 +6,7 @@ keep PRs focused.
 ## Setup
 
 ```bash
-git clone https://github.com/your-org/qcp
+git clone https://github.com/Moduna-AI/qcp
 cd qcp
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,postgres]"

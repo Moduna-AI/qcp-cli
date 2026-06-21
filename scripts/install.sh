@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Installer for qcp (Query Companion).
-# Usage: curl -fsSL https://raw.githubusercontent.com/your-org/qcp/main/scripts/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Moduna-AI/qcp/main/scripts/install.sh | bash
 set -euo pipefail
 
-REPO="your-org/qcp"
+REPO="Moduna-AI/qcp"
 INSTALL_DIR="${QCP_INSTALL_DIR:-$HOME/.local/bin}"
 BIN_NAME="qcp"
 
