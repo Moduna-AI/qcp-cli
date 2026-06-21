@@ -58,7 +58,6 @@ jobs:
         id: meta
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          # Pulls the source code snapshot directly from your public GitHub release tag
           URL="https://github.com{VERSION}.tar.gz"
           
           echo "Fetching source tarball from GitHub..."
