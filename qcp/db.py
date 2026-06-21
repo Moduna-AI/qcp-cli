@@ -108,7 +108,7 @@ class PostgresDatabaseClient(DatabaseClient):
         try:
             connection.read_only = True
             with connection.cursor() as cursor:
-                cursor.execute(normalized_sql)
+                cursor.execute(normalized_sql.encode("utf-8"))
                 if cursor.description is None:
                     raise UnsafeQueryError(normalized_sql)
                 columns = [_column_name(item) for item in cursor.description]
