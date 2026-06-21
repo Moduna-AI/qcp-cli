@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Installer for qcp (Query Companion).
-# Usage: curl -fsSL https://raw.githubusercontent.com/Moduna-AI/qcp/main/scripts/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Moduna-AI-cli/main/scripts/install.sh | bash
 set -euo pipefail
 
-REPO="Moduna-AI/qcp"
+REPO="Moduna-AI/qcp-cli"
 INSTALL_DIR="${QCP_INSTALL_DIR:-$HOME/.local/bin}"
 BIN_NAME="qcp"
 
@@ -30,27 +30,44 @@ detect_platform() {
 }
 
 main() {
-  if ! command -v python3 >/dev/null 2>&1; then
-    err "python3 is required but was not found on PATH."
-    exit 1
-  fi
-
-  info "Installing qcp via pip (pipx preferred if available)..."
-
-  if command -v pipx >/dev/null 2>&1; then
-    pipx install "qcp"
-  else
-    python3 -m pip install --user --upgrade "qcp"
-  fi
-
+  # 1. Detect platform architecture
+  local platform
+  platform=$(detect_platform)
+  
+  # 2. Get the latest release tag from GitHub API
+  info "Fetching latest version metadata..."
+  local tag
+  tag=$(curl -fsSL "https://github.com{REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  
+  info "Downloading qcp (${tag}) for ${platform}..."
+  
+  # 3. Formulate asset name matching your release naming scheme
+  # (e.g., qcp-macos-arm64.tar.gz)
+  local asset_name="qcp-${platform}.tar.gz"
+  local download_url="https://github.com{REPO}/releases/download/${tag}/${asset_name}"
+  
+  # 4. Download and unpack directly into the target installation directory
   mkdir -p "$INSTALL_DIR"
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  
+  # Ensure cleanup of temp files even on script failures
+  trap 'rm -rf "$tmp_dir"' EXIT
+  
+  curl -fsSL "$download_url" -o "${tmp_dir}/${asset_name}"
+  tar -xzf "${tmp_dir}/${asset_name}" -C "$tmp_dir"
+  
+  # Move binary and apply executable permissions
+  mv "${tmp_dir}/${BIN_NAME}" "$INSTALL_DIR/${BIN_NAME}"
+  chmod +x "$INSTALL_DIR/${BIN_NAME}"
 
-  if ! command -v "$BIN_NAME" >/dev/null 2>&1; then
-    info "Note: add this to your shell profile if 'qcp' isn't found:"
-    echo '  export PATH="$HOME/.local/bin:$PATH"'
+  # 5. Check if the target installation directory is on the system PATH
+  if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+    info "Note: Add this to your shell profile (~/.zshrc or ~/.bash_profile) if 'qcp' isn't found:"
+    echo "  export PATH=\"${INSTALL_DIR}:\$PATH\""
   fi
 
-  ok "qcp installed! Run 'qcp init' to connect a database, then 'qcp auth' to add your Gemini key."
+  ok "qcp installed successfully! Run 'qcp init' to connect a database, then 'qcp auth' to add your Gemini key."
 }
 
 main "$@"

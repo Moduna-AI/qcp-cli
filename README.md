@@ -44,20 +44,20 @@ QCP requires Python 3.14 or newer.
 ### macOS / Linux (curl)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Moduna-AI/qcp/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Moduna-AI/qcp-cli/main/scripts/install.sh | bash
 ```
 
 ### macOS (Homebrew)
 
 ```bash
-brew tap Moduna-AI/qcp
+brew tap Moduna-AI/qcp-cli
 brew install qcp
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/Moduna-AI/qcp/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/Moduna-AI/qcp-cli/main/scripts/install.ps1 | iex
 ```
 
 ### Via pip (any platform)
@@ -136,7 +136,7 @@ invalidates the cache and permits one refresh-and-retry cycle.
 ## Development
 
 ```bash
-git clone https://github.com/Moduna-AI/qcp
+git clone https://github.com/Moduna-AI/qcp-cli
 cd qcp
 uv sync --extra dev
 uv run pytest
