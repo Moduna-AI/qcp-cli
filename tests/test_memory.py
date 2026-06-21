@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import stat
 from datetime import UTC, datetime, timedelta
 
@@ -24,7 +25,8 @@ def test_memory_round_trip_and_owner_only_permissions(tmp_path):
     store.store(snapshot)
 
     assert store.recall("database-a") == snapshot
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    if os.name != "nt":
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 def test_memory_expires_after_ttl(tmp_path):
