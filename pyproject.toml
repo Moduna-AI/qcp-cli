@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qcp-cli"
-version = "0.1.7"
+version = "0.1.8"
 description = "Query Companion: a CLI to query Postgres databases in natural language."
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 authors = [
     { name = "Query Companion contributors" }
 ]
