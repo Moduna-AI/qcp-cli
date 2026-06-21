@@ -29,6 +29,14 @@ jobs:
       - name: Run tests
         run: uv run pytest -v
 
+      - name: Run Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files
+
       - name: Smoke test CLI
         run: uv run qcp --version
 

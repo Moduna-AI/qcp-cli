@@ -8,21 +8,20 @@ keep PRs focused.
 ```bash
 git clone https://github.com/Moduna-AI/qcp
 cd qcp
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,postgres]"
-pytest
+uv sync --extra dev
+uv run pre-commit install
+uv run pytest
 ```
 
 ## Guidelines
 
-- Keep the CLI dependency-light (currently just `click`).
-- New LLM providers should implement the same small interface as `qcp/llm.py`
-  (`generate_sql`, `generate_insights`, `validate_api_key`) rather than
-  branching logic across the codebase.
-- Any code path that executes SQL must go through `db.run_query`, which
-  enforces the read-only check.
+- New LLM providers should implement `ChatModelFactory` rather than branching
+  provider logic across the codebase.
+- Any code path that executes SQL must go through `DatabaseClient.execute_read_query`,
+  which enforces the read-only check and transaction.
 - Add or update tests in `tests/` for any behavior change.
-- Run `pytest` before opening a PR.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and
+  `uv run pytest` before opening a PR.
 
 ## Reporting issues
 

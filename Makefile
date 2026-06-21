@@ -1,8 +1,6 @@
-.PHONY: help install dev clean build rebuild test lint run uninstall
+.PHONY: help install dev clean build rebuild test lint format pre-commit run uninstall
 
-PYTHON ?= python3
-VENV   ?= .venv
-BIN    := $(VENV)/bin
+UV ?= uv
 
 help:
 	@echo "qcp dev tasks:"
@@ -12,46 +10,50 @@ help:
 	@echo "  make clean     - remove venv, build artifacts, caches"
 	@echo "  make rebuild   - clean, then dev install + build (clean build)"
 	@echo "  make test      - run the test suite"
+	@echo "  make lint      - run Ruff checks"
+	@echo "  make format    - format Python with Ruff"
+	@echo "  make pre-commit - run all pre-commit hooks"
 	@echo "  make uninstall - pip-uninstall qcp from the active environment"
 
 # --- clean install: fresh venv, fresh deps -----------------------------
 install: clean
-	$(PYTHON) -m venv $(VENV)
-	$(BIN)/pip install --upgrade pip --quiet
-	$(BIN)/pip install -e . --quiet
-	@echo "✔ qcp installed in $(VENV). Activate with: source $(VENV)/bin/activate"
+	$(UV) sync
+	@echo "qcp installed in .venv. Run it with: uv run qcp"
 
 dev: clean
-	$(PYTHON) -m venv $(VENV)
-	$(BIN)/pip install --upgrade pip --quiet
-	$(BIN)/pip install -e ".[dev,postgres]" --quiet
-	@echo "✔ qcp + dev/test deps installed in $(VENV)."
+	$(UV) sync --extra dev
+	@echo "qcp + development dependencies installed in .venv."
 
 # --- clean build: fresh dist/ from a clean tree -------------------------
 build: clean
-	$(PYTHON) -m venv $(VENV)
-	$(BIN)/pip install --upgrade pip build --quiet
-	$(BIN)/python -m build
-	@echo "✔ Built sdist + wheel into dist/"
+	$(UV) build
+	@echo "Built sdist + wheel into dist/"
 
 rebuild: dev build
 
 test:
-	$(BIN)/pytest -v
+	$(UV) run pytest -v
 
 lint:
-	$(BIN)/python -m py_compile qcp/*.py tests/*.py
-	@echo "✔ All files compile"
+	$(UV) run ruff check .
+	$(UV) run ruff format --check .
+
+format:
+	$(UV) run ruff check --fix .
+	$(UV) run ruff format .
+
+pre-commit:
+	$(UV) run pre-commit run --all-files
 
 run:
-	$(BIN)/qcp $(ARGS)
+	$(UV) run qcp $(ARGS)
 
 uninstall:
-	$(BIN)/pip uninstall -y qcp || true
+	$(UV) pip uninstall qcp || true
 
 # --- clean: wipe venv, build artifacts, caches ---------------------------
 clean:
-	rm -rf $(VENV) build dist *.egg-info qcp.egg-info
+	rm -rf .venv build dist *.egg-info qcp.egg-info
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf .pytest_cache .mypy_cache .ruff_cache
