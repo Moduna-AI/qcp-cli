@@ -58,13 +58,14 @@ jobs:
         id: meta
         run: |
           V_TAG="${GITHUB_REF_NAME}"
-          URL_STR="https://github.com{V_TAG}.tar.gz"
-          echo "url_out=${URL_STR}" >> "$GITHUB_OUTPUT"
-          
-          curl -fsSL -o /tmp/qcp.tar.gz "${URL_STR}"
+          URL_STR="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${V_TAG}.tar.gz"
+          echo "url=${URL_STR}" >> "$GITHUB_OUTPUT"
+
+          curl --fail --location --show-error --silent --retry 3 \
+            --output /tmp/qcp.tar.gz "${URL_STR}"
           SHA_OUT=$(sha256sum /tmp/qcp.tar.gz | cut -d' ' -f1)
-          echo "sha_out=${SHA_OUT}" >> "$GITHUB_OUTPUT"
-          echo "version_out=${V_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA_OUT}" >> "$GITHUB_OUTPUT"
+          echo "version=${V_TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Update formula
         run: |
