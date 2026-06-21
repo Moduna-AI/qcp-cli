@@ -13,19 +13,19 @@ class Qcp < Formula
   # 1. Dynamically detect OS and CPU architecture to pull the right binary asset
 	if OS.mac?
     	if Hardware::CPU.arm?
-			url "https://github.com{version}/qcp-macos-arm64.tar.gz"
-			sha256 "REPLACED_BY_CI_MAC_ARM"
+			url "https://github.com/Moduna-AI/qcp/archive/refs/tags/v0.1.1.tar.gz"
+			sha256 "a585f9050a25ed1cb737ffccb2310d149b05d7233512e253685649e908d78f32"
     	else
-    		url "https://github.com{version}/qcp-macos-amd64.tar.gz"
-    		sha256 "REPLACED_BY_CI_MAC_AMD"
+    		url "https://github.com/Moduna-AI/qcp/archive/refs/tags/v0.1.1.tar.gz"
+    		sha256 "a585f9050a25ed1cb737ffccb2310d149b05d7233512e253685649e908d78f32"
     	end
   	elsif OS.linux?
     	if Hardware::CPU.arm?
-			url "https://github.com{version}/qcp-linux-arm64.tar.gz"
-			sha256 "REPLACED_BY_CI_LINUX_ARM"
+			url "https://github.com/Moduna-AI/qcp/archive/refs/tags/v0.1.1.tar.gz"
+			sha256 "a585f9050a25ed1cb737ffccb2310d149b05d7233512e253685649e908d78f32"
     	else
-			url "https://github.com{version}/qcp-linux-amd64.tar.gz"
-			sha256 "REPLACED_BY_CI_LINUX_AMD"
+			url "https://github.com/Moduna-AI/qcp/archive/refs/tags/v0.1.1.tar.gz"
+			sha256 "a585f9050a25ed1cb737ffccb2310d149b05d7233512e253685649e908d78f32"
     	end
   	end
 
