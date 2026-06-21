@@ -76,25 +76,30 @@ jobs:
         id: meta
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          URL="https://pythonhosted.org{VERSION}.tar.gz"
-          echo "Waiting for PyPI to publish..."
-          
-          # Gives PyPI's CDN up to 10 minutes to register and index the file
+          PACKAGE="qcp-cli"
+
+          echo "Waiting for PyPI to publish sdist..."
+
           for i in $(seq 1 20); do
-            if curl -fsSL -o /tmp/qcp-cli.tar.gz "$URL"; then 
-              echo "Found package file on PyPI CDN!"
-              break 
+            JSON=$(curl -fsSL "https://pypi.org/pypi/$PACKAGE/$VERSION/json" || true)
+
+            URL=$(echo "$JSON" | jq -r '.urls[] | select(.packagetype == "sdist") | .url' 2>/dev/null)
+            SHA256=$(echo "$JSON" | jq -r '.urls[] | select(.packagetype == "sdist") | .digests.sha256' 2>/dev/null)
+
+            if [ -n "$URL" ] && [ "$URL" != "null" ] && [ -n "$SHA256" ] && [ "$SHA256" != "null" ]; then
+              echo "Found sdist on PyPI!"
+              break
             fi
-            echo "Still waiting for PyPI to index package... (Attempt $i/20)"
+
+            echo "Still waiting for PyPI to index sdist... (Attempt $i/20)"
             sleep 30
           done
-          
-          if [ ! -f /tmp/qcp-cli.tar.gz ]; then
-            echo "Error: Timed out waiting for package archive on PyPI"
+
+          if [ -z "$URL" ] || [ "$URL" = "null" ]; then
+            echo "Error: Timed out waiting for sdist on PyPI"
             exit 1
           fi
-          
-          SHA256=$(sha256sum /tmp/qcp-cli.tar.gz | cut -d' ' -f1)
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
