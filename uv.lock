@@ -123,8 +123,8 @@ wheels = [
 ]
 
 [[package]]
-name = "qcp"
-version = "0.1.0"
+name = "qcp-cli"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

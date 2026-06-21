@@ -5,8 +5,6 @@ LLM's prompt), and run read-only queries safely.
 """
 from __future__ import annotations
 
-from typing import Any
-
 from .errors import DatabaseConnectionError, NoDatabaseConfiguredError, UnsafeQueryError
 from . import config as cfg
 
@@ -22,11 +20,6 @@ def require_db_url() -> str:
 
 
 def _connect(db_url: str):
-    try:
-        import psycopg
-        return psycopg.connect(db_url, connect_timeout=10)
-    except ImportError:
-        pass
     try:
         import psycopg2
         return psycopg2.connect(db_url, connect_timeout=10)
