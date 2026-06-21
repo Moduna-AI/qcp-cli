@@ -1,37 +1,45 @@
 """qcp - Query Companion: a CLI to query Postgres in natural language."""
+
 from __future__ import annotations
 
 import sys
 
 import click
 
-from . import __version__
-from . import config as cfg
-from . import db, llm
-from .errors import QcpError
-from .output import format_table
+from qcp import __version__, db, llm
+from qcp import config as cfg
+from qcp.agent import DatabaseAgent
+from qcp.db import PostgresDatabaseClient
+from qcp.errors import QcpError
+from qcp.llm import GeminiChatModelFactory
+from qcp.memory import JsonSchemaMemoryStore
+from qcp.output import format_table
 
 
 def _print_err(msg: str) -> None:
+    """Print a red error message to stderr."""
     click.secho(msg, fg="red", err=True)
 
 
 @click.group()
 @click.version_option(__version__, prog_name="qcp")
 def main() -> None:
-    """qcp - your CLI companion for querying Postgres in plain English."""
+    """QCP - your CLI companion for querying Postgres in plain English."""
 
 
 @main.command()
 @click.option("--database-url", "-d", default=None, help="Postgres connection string. Prompted if omitted.")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration without asking.")
 def init(database_url: str | None, force: bool) -> None:
-    """Connect qcp to a Postgres database."""
+    """Connect QCP to a Postgres database."""
     existing = cfg.get_db_url()
-    if existing and not force:
-        if not click.confirm(f"A database is already configured ({_mask(existing)}). Replace it?"):
-            click.echo("Keeping existing configuration.")
-            return
+    if (
+        existing
+        and not force
+        and not click.confirm(f"A database is already configured ({_mask(existing)}). Replace it?")
+    ):
+        click.echo("Keeping existing configuration.")
+        return
 
     if not database_url:
         click.echo("Enter your Postgres connection string, e.g.")
@@ -41,7 +49,7 @@ def init(database_url: str | None, force: bool) -> None:
     click.echo("Testing connection...")
     db.test_connection(database_url)
     cfg.set_key("database_url", database_url)
-    click.secho("✔ Connected and saved.", fg="green")
+    click.secho("Connected and saved.", fg="green")
 
     if not cfg.get_gemini_api_key():
         click.echo("\nTip: run `qcp auth` next to add your Gemini API key.")
@@ -56,7 +64,7 @@ def auth(key: str | None, remove: bool, skip_validate: bool, model: str | None) 
     """Add (or remove) your Gemini API key."""
     if remove:
         cfg.unset_key("gemini_api_key")
-        click.secho("✔ Removed stored Gemini API key.", fg="green")
+        click.secho("Removed stored Gemini API key.", fg="green")
         return
 
     if model:
@@ -80,15 +88,14 @@ def auth(key: str | None, remove: bool, skip_validate: bool, model: str | None) 
 
     cfg.set_key("gemini_api_key", key)
     cfg.set_key("provider", "gemini")
-    click.secho("✔ Gemini API key saved.", fg="green")
+    click.secho("Gemini API key saved.", fg="green")
 
 
 @main.command()
 @click.argument("question", nargs=-1, required=True)
 @click.option("--show-sql/--no-show-sql", default=True, help="Print the generated SQL before running it.")
-@click.option("--allow-write", is_flag=True, help="Allow non-SELECT statements (use with caution).")
 @click.option("--dry-run", is_flag=True, help="Only generate and print SQL, don't execute it.")
-def query(question: tuple[str, ...], show_sql: bool, allow_write: bool, dry_run: bool) -> None:
+def query(question: tuple[str, ...], show_sql: bool, dry_run: bool) -> None:
     """Ask a question about your data in plain English.
 
     Example: qcp query "what were the top 5 products by revenue last month?"
@@ -97,10 +104,9 @@ def query(question: tuple[str, ...], show_sql: bool, allow_write: bool, dry_run:
     db_url = db.require_db_url()
 
     click.echo("Reading schema...")
-    schema = db.get_schema_summary(db_url)
-
-    click.echo("Generating SQL...")
-    sql = llm.generate_sql(question_text, schema)
+    click.echo("Running database agent...")
+    result = _create_agent(db_url).query(question_text, dry_run=dry_run)
+    sql = result.query_result.sql
 
     if show_sql or dry_run:
         click.secho("\n" + sql + "\n", fg="cyan")
@@ -108,34 +114,34 @@ def query(question: tuple[str, ...], show_sql: bool, allow_write: bool, dry_run:
     if dry_run:
         return
 
-    columns, rows = db.run_query(db_url, sql, allow_write=allow_write)
-    click.echo(format_table(columns, rows))
+    click.echo(format_table(result.query_result.columns, result.query_result.rows))
+    if result.query_result.truncated:
+        click.echo("\n(Result limited to 200 rows.)")
+    click.echo("\n" + result.answer)
 
 
 @main.command()
-@click.option("--from-question", default=None, help="Base insights on the results of this question instead of just the schema.")
+@click.option(
+    "--from-question", default=None, help="Base insights on the results of this question instead of just the schema."
+)
 def insights(from_question: str | None) -> None:
     """Get AI-generated analytics and insights about your database."""
     db_url = db.require_db_url()
-    schema = db.get_schema_summary(db_url)
-
-    sample_data = None
+    database_agent = _create_agent(db_url)
     if from_question:
-        click.echo("Generating SQL for your question...")
-        sql = llm.generate_sql(from_question, schema)
-        click.secho("\n" + sql + "\n", fg="cyan")
-        columns, rows = db.run_query(db_url, sql)
-        sample_data = format_table(columns, rows)
-        click.echo(sample_data + "\n")
+        click.echo("Running a read query for your question...")
 
     click.echo("Generating insights...")
-    result = llm.generate_insights(schema, sample_data)
-    click.echo("\n" + result)
+    result = database_agent.insights(from_question)
+    if result.query_result is not None:
+        click.secho("\n" + result.query_result.sql + "\n", fg="cyan")
+        click.echo(format_table(result.query_result.columns, result.query_result.rows) + "\n")
+    click.echo("\n" + "\n".join(f"- {insight}" for insight in result.insights))
 
 
 @main.command()
 def status() -> None:
-    """Show current qcp configuration."""
+    """Show current QCP configuration."""
     db_url = cfg.get_db_url()
     api_key = cfg.get_gemini_api_key()
     provider = cfg.get_provider()
@@ -154,6 +160,13 @@ def _mask(url: str) -> str:
     scheme_and_creds, host_part = url.rsplit("@", 1)
     scheme = scheme_and_creds.split("://")[0]
     return f"{scheme}://***@{host_part}"
+
+
+def _create_agent(database_url: str) -> DatabaseAgent:
+    """Construct the dependency-injected agent used by CLI commands."""
+    database = PostgresDatabaseClient(database_url)
+    model_factory = GeminiChatModelFactory(llm.require_api_key())
+    return DatabaseAgent(database, JsonSchemaMemoryStore(), model_factory)
 
 
 def run() -> None:

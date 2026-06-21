@@ -24,19 +24,22 @@ Globex Inc      39120.00
 (5 rows)
 ```
 
-`qcp` translates your question into a read-only SQL query using Google
-Gemini, runs it against your database, and prints the results. It can also
-suggest analytics and insights about your data.
+`qcp` uses a LangChain database agent powered by Google Gemini 2.5 Flash to
+translate your question into a read-only SQL query, run it, print the exact
+results, and explain the answer in plain language.
 
 ## Features
 
 - 🗣️ Ask questions in natural language, get SQL + results
 - 🔒 Read-only by default — only `SELECT`/`WITH` statements are executed
 - 💡 `qcp insights` — AI-generated analytics suggestions for your schema
+- 🧠 Local schema memory with automatic 24-hour refresh
 - 🔑 Bring your own Gemini API key (free tier available)
 - 🪶 Minimal footprint — single CLI, no servers or daemons
 
 ## Install
+
+QCP requires Python 3.14 or newer.
 
 ### macOS / Linux (curl)
 
@@ -85,6 +88,8 @@ clear error and tells you to run `qcp init` first.
 ## Configuration
 
 `qcp` stores config at `~/.qcp/config.json` (override with `QCP_HOME`).
+Validated schema metadata is cached separately at `~/.qcp/schema.json`; it
+never contains credentials or query result rows.
 You can also use environment variables instead of (or to override) the
 config file:
 
@@ -113,15 +118,20 @@ Useful flags on `qcp query`:
 
 - `--dry-run` — print the generated SQL without executing it
 - `--no-show-sql` — only print results, hide the SQL
-- `--allow-write` — allow non-SELECT statements (off by default, not recommended)
 
 ## Safety
 
-By default `qcp` only ever executes `SELECT`/`WITH` statements — any other
-generated statement is refused before it reaches your database. Always
-review generated SQL (shown by default) before trusting the results,
-especially on production databases. Consider pointing `qcp` at a read-only
-database role.
+`qcp` only executes one `SELECT`/`WITH` statement. Validation is backed by a
+PostgreSQL read-only transaction, and there is no write override. Always review
+generated SQL (shown by default), especially on production databases. A
+read-only database role remains recommended as an additional boundary.
+
+## Agent tools
+
+The LangChain agent has four narrow tools: `lookup_schema`, `schema_memory`,
+`execute_read_query`, and `analyze_insights`. Schema data is reused for 24
+hours, then refreshed automatically. An undefined table, column, or schema
+invalidates the cache and permits one refresh-and-retry cycle.
 
 ## Development
 
@@ -132,12 +142,9 @@ uv sync --extra dev
 uv run pytest
 ```
 
-(Or with plain pip: `pip install -e ".[dev]"` then `pytest`.)
-
-**Note:** if you use `uv`, run things with `uv run <cmd>` (uses this
-project's environment), not `uvx <cmd>` (spins up an isolated environment
-with *only* that tool, which won't have `qcp` installed and will fail with
-`ModuleNotFoundError: No module named 'qcp'`).
+Install the Git hook once with `uv run pre-commit install`. Use
+`uv run <command>` for project commands; `uvx` creates an isolated environment
+without QCP installed.
 
 ### Clean install / clean build
 
@@ -153,7 +160,7 @@ never get bitten by stale venvs or cached build artifacts:
 | Clean install, then build    | `make rebuild`              | —                      |
 | Run tests                    | `make test`                | —                      |
 | Run the CLI from venv        | `make run ARGS="status"`   | —                      |
-| Compile-check all files      | `make lint`                | —                      |
+| Run Ruff checks              | `make lint`                | —                      |
 
 `make build` / `./scripts/build.sh` always wipe the tree first, so `dist/`
 is never tainted by a previous build. Both are safe to re-run anytime.

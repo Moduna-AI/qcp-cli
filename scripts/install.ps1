@@ -10,7 +10,7 @@ function Write-Err($msg) { Write-Host $msg -ForegroundColor Red }
 
 if (-not (Get-Command python -ErrorAction SilentlyContinue) -and
     -not (Get-Command python3 -ErrorAction SilentlyContinue)) {
-    Write-Err "Python was not found on PATH. Install Python 3.9+ from https://www.python.org/downloads/ and re-run this script."
+    Write-Err "Python was not found on PATH. Install Python 3.14+ from https://www.python.org/downloads/ and re-run this script."
     exit 1
 }
 
