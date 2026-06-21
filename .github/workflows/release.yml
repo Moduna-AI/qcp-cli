@@ -50,7 +50,7 @@ jobs:
       - name: Checkout tap repo
         uses: actions/checkout@v4.2.2
         with:
-          repository: Moduna-AI/homebrew-qcp
+          repository: Moduna-AI/qcp
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: tap
 
