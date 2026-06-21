@@ -68,7 +68,7 @@ jobs:
       - name: Checkout tap repo
         uses: actions/checkout@v4
         with:
-          repository: Moduna-AI/qcp-cli
+          repository: Moduna-AI/homebrew-qcp  # Points to your newly created repository
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: tap
 
@@ -76,12 +76,24 @@ jobs:
         id: meta
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          URL="https://files.pythonhosted.org/packages/source/q/qcp-cli/qcp-cli-${VERSION}.tar.gz"
+          URL="https://pythonhosted.org{VERSION}.tar.gz"
           echo "Waiting for PyPI to publish..."
-          for i in $(seq 1 10); do
-            if curl -fsSL -o /tmp/qcp-cli.tar.gz "$URL"; then break; fi
-            sleep 15
+          
+          # Gives PyPI's CDN up to 10 minutes to register and index the file
+          for i in $(seq 1 20); do
+            if curl -fsSL -o /tmp/qcp-cli.tar.gz "$URL"; then 
+              echo "Found package file on PyPI CDN!"
+              break 
+            fi
+            echo "Still waiting for PyPI to index package... (Attempt $i/20)"
+            sleep 30
           done
+          
+          if [ ! -f /tmp/qcp-cli.tar.gz ]; then
+            echo "Error: Timed out waiting for package archive on PyPI"
+            exit 1
+          fi
+          
           SHA256=$(sha256sum /tmp/qcp-cli.tar.gz | cut -d' ' -f1)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
@@ -98,4 +110,5 @@ jobs:
           git config user.name "qcp-release-bot"
           git config user.email "actions@github.com"
           git commit -am "qcp ${{ steps.meta.outputs.version }}" || echo "no changes"
-          git push
+          git push origin main
+
