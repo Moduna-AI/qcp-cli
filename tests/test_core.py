@@ -124,6 +124,7 @@ def test_postgres_query_enforces_read_only_and_row_limit(monkeypatch):
     assert len(result.rows) == 200
     assert result.truncated is True
     assert result.columns == ["number"]
+    assert cursor.executed == [b"SELECT number FROM values"]
 
 
 def test_unsafe_query_is_blocked_before_connecting(monkeypatch):
