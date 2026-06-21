@@ -1,0 +1,13 @@
+{
+    "makefile.configureOnOpen": false,
+    "[python]": {},
+    "[yaml]": {
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4
+    },
+    "biome.enabled": false,
+    "[ruby]": {
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4
+    }
+}

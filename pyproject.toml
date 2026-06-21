@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qcp"
+version = "0.1.0"
+description = "Query Companion: a CLI to query Postgres databases in natural language."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+authors = [
+    { name = "Query Companion contributors" }
+]
+keywords = ["cli", "postgres", "sql", "natural-language", "gemini", "ai", "database"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+]
+dependencies = [
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.1"]
+dev = ["pytest>=7.0", "pytest-mock>=3.10"]
+
+[project.scripts]
+qcp = "qcp.cli:run"
+
+[project.urls]
+Homepage = "https://github.com/your-org/qcp"
+Issues = "https://github.com/your-org/qcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["qcp"]
