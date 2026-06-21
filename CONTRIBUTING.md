@@ -6,7 +6,7 @@ keep PRs focused.
 ## Setup
 
 ```bash
-git clone https://github.com/Moduna-AI/qcp
+git clone https://github.com/Moduna-AI/qcp-cli
 cd qcp
 uv sync --extra dev
 uv run pre-commit install
