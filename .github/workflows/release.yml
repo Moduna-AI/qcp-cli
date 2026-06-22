@@ -43,8 +43,14 @@ jobs:
         include:
           - os: macos-latest
             arch: arm64
-          - os: macos-13
+            artifact: qcp-macos-arm64
+          - os: ubuntu-latest
             arch: x86_64
+            artifact: qcp-linux-x86_64
+          - os: windows-latest
+            arch: x86_64
+            artifact: qcp-windows-x86_64
+
     steps:
       - uses: actions/checkout@v4.2.2
 
