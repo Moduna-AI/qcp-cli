@@ -27,49 +27,23 @@ jobs:
 
       - name: Test built package
         run: |
-          uv venv /tmp/qcp-test
+          ls -la dist
+          uv venv /tmp/qcp-test --python 3.14
           uv pip install --python /tmp/qcp-test/bin/python dist/*.whl
           /tmp/qcp-test/bin/qcp --version
+
+      - name: Compute sdist SHA256
+        id: sha
+        run: |
+          echo "sdist=$(sha256sum dist/*.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4.6.1
         with:
           name: dist
           path: dist/
 
-  build-binaries:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            arch: arm64
-            artifact: qcp-macos-arm64
-          - os: ubuntu-latest
-            arch: x86_64
-            artifact: qcp-linux-x86_64
-          - os: windows-latest
-            arch: x86_64
-            artifact: qcp-windows-x86_64
-
-    steps:
-      - uses: actions/checkout@v4.2.2
-
-      - uses: astral-sh/setup-uv@v5
-
-      - run: uv python install 3.14
-
-      - name: Build binary
-        run: >
-          uv run --with pyinstaller pyinstaller
-          --onedir
-          --collect-all qcp
-          --name qcp-${{ matrix.arch }}
-          qcp/cli.py
-
-      - uses: actions/upload-artifact@v4.6.1
-        with:
-          name: qcp-macos-${{ matrix.arch }}
-          path: dist/qcp-${{ matrix.arch }}
+    outputs:
+      sdist_sha: ${{ steps.sha.outputs.sdist }}
 
   publish-pypi:
     runs-on: ubuntu-latest
@@ -90,46 +64,25 @@ jobs:
 
   github-release:
     runs-on: ubuntu-latest
-    needs: [build, build-binaries]
+    needs: build
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: dist
+          name: dist
           path: dist/
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: qcp-macos-*
-          merge-multiple: false
-          path: binaries/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/*
-            binaries/qcp-macos-arm64/qcp-arm64
-            binaries/qcp-macos-x86_64/qcp-x86_64
+          files: dist/*
           generate_release_notes: true
 
   update-homebrew:
     runs-on: ubuntu-latest
-    needs: github-release
+    needs: [build, publish-pypi, github-release]
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: qcp-macos-*
-          merge-multiple: false
-          path: binaries/
-
-      - name: Compute SHA256s
-        id: sha
-        run: |
-          echo "arm64=$(sha256sum binaries/qcp-macos-arm64/qcp-arm64 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-          echo "x86_64=$(sha256sum binaries/qcp-macos-x86_64/qcp-x86_64 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-
       - name: Checkout tap repo
         uses: actions/checkout@v4
         with:
@@ -139,43 +92,44 @@ jobs:
 
       - name: Rewrite formula
         env:
-          VERSION: ${{ github.ref_name }}
-          ARM64_SHA: ${{ steps.sha.outputs.arm64 }}
-          X86_SHA: ${{ steps.sha.outputs.x86_64 }}
+          VERSION_TAG: ${{ github.ref_name }}
+          SDIST_SHA: ${{ needs.build.outputs.sdist_sha }}
         run: |
           python3 - <<'PYEOF'
-          import os, textwrap
-          tag = os.environ["VERSION"]
+          import os
+          import textwrap
+
+          tag = os.environ["VERSION_TAG"]
           version = tag.lstrip("v")
-          arm64 = os.environ["ARM64_SHA"]
-          x86 = os.environ["X86_SHA"]
-          base = "https://github.com/Moduna-AI/qcp-cli/releases/download"
+          sha = os.environ["SDIST_SHA"]
+
           formula = textwrap.dedent(f"""
-            class Qcp < Formula
-              desc "Query Companion: query Postgres databases in natural language"
-              homepage "https://github.com/Moduna-AI/qcp-cli"
-              version "{version}"
+          class Qcp < Formula
+            include Language::Python::Virtualenv
 
-              on_macos do
-                on_arm do
-                  url "{base}/{tag}/qcp-arm64"
-                  sha256 "{arm64}"
-                end
-                on_intel do
-                  url "{base}/{tag}/qcp-x86_64"
-                  sha256 "{x86}"
-                end
-              end
+            desc "Query Companion: query Postgres databases in natural language"
+            homepage "https://github.com/Moduna-AI/qcp-cli"
+            url "https://github.com/Moduna-AI/qcp-cli/releases/download/{tag}/qcp_cli-{version}.tar.gz"
+            sha256 "{sha}"
+            license "MIT"
 
-              def install
-                bin.install Dir["qcp*"].first => "qcp"
-              end
+            depends_on "python@3.14"
 
-              test do
-                assert_match version.to_s, shell_output("\#{bin}/qcp --version")
-              end
+            def install
+              system "python3.14", "-m", "venv", libexec
+              system libexec/"bin/python", "-m", "pip", "install", "--upgrade", "pip"
+              system libexec/"bin/python", "-m", "pip", "install", buildpath
+
+              bin.install_symlink libexec/"bin/qcp"
             end
+
+            test do
+              system "#{{bin}}/qcp", "--version"
+            end
+          end
           """).lstrip()
+
+          os.makedirs("tap/Formula", exist_ok=True)
           with open("tap/Formula/qcp.rb", "w") as f:
               f.write(formula)
           PYEOF
@@ -185,5 +139,7 @@ jobs:
         run: |
           git config user.name "qcp-release-bot"
           git config user.email "actions@github.com"
-          git commit -am "qcp ${GITHUB_REF_NAME#v}"
+          git add Formula/qcp.rb
+          git commit -m "qcp ${GITHUB_REF_NAME#v}" || exit 0
           git push origin main
+          
