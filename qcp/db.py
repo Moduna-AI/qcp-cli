@@ -115,7 +115,7 @@ class PostgresDatabaseClient(DatabaseClient):
                 fetched_rows: Sequence[Sequence[Any]] = cursor.fetchmany(limit + 1)
         except (UndefinedTable, UndefinedColumn, InvalidSchemaName) as error:
             raise SchemaChangedError(str(error)) from error
-        except UnsafeQueryError, SchemaChangedError:
+        except (UnsafeQueryError, SchemaChangedError):
             raise
         except Exception as error:
             raise DatabaseConnectionError(str(error)) from error

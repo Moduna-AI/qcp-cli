@@ -60,60 +60,100 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+  build-binaries:
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+          - os: macos-13
+            arch: x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv run --with pyinstaller pyinstaller --onefile --name qcp src/qcp/cli.py
+      - uses: actions/upload-artifact@v4.6.1
+        with:
+          name: qcp-macos-${{ matrix.arch }}
+          path: dist/qcp
 
   update-homebrew:
+    needs: [github-release, build-binaries]
     runs-on: ubuntu-latest
-    needs: publish-pypi
     steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qcp-macos-*
+          merge-multiple: false
+          path: binaries/
+
+      - name: Compute SHA256s
+        id: sha
+        run: |
+          echo "arm64=$(sha256sum binaries/qcp-macos-arm64/qcp | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "x86_64=$(sha256sum binaries/qcp-macos-x86_64/qcp | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: binaries/*/qcp
+
       - name: Checkout tap repo
         uses: actions/checkout@v4
         with:
-          repository: Moduna-AI/homebrew-qcp  # Points to your newly created repository
+          repository: Moduna-AI/homebrew-qcp
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: tap
 
-      - name: Compute sdist URL and sha256
-        id: meta
+      - name: Rewrite formula
+        env:
+          VERSION: ${{ github.ref_name }}
+          ARM64_SHA: ${{ steps.sha.outputs.arm64 }}
+          X86_SHA: ${{ steps.sha.outputs.x86_64 }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          PACKAGE="qcp-cli"
+          python3 - <<'PYEOF'
+          import os, textwrap
+          version = os.environ["VERSION"].lstrip("v")
+          tag = os.environ["VERSION"]
+          arm64 = os.environ["ARM64_SHA"]
+          x86 = os.environ["X86_SHA"]
+          formula = textwrap.dedent(f"""
+            class Qcp < Formula
+              desc "Query Companion: query Postgres databases in natural language"
+              homepage "https://github.com/Moduna-AI/qcp-cli"
+              version "{version}"
 
-          echo "Waiting for PyPI to publish sdist..."
+              on_macos do
+                on_arm do
+                  url "https://github.com/Moduna-AI/qcp-cli/releases/download/{tag}/qcp-arm64"
+                  sha256 "{arm64}"
+                end
+                on_intel do
+                  url "https://github.com/Moduna-AI/qcp-cli/releases/download/{tag}/qcp-x86_64"
+                  sha256 "{x86}"
+                end
+              end
 
-          for i in $(seq 1 20); do
-            JSON=$(curl -fsSL "https://pypi.org/pypi/$PACKAGE/$VERSION/json" || true)
+              def install
+                bin.install Dir["qcp*"].first => "qcp"
+              end
 
-            URL=$(echo "$JSON" | jq -r '.urls[] | select(.packagetype == "sdist") | .url' 2>/dev/null)
-            SHA256=$(echo "$JSON" | jq -r '.urls[] | select(.packagetype == "sdist") | .digests.sha256' 2>/dev/null)
+              test do
+                assert_match version.to_s, shell_output("\#{bin}/qcp --version")
+              end
+            end
+          """).lstrip()
+          with open("tap/Formula/qcp.rb", "w") as f:
+              f.write(formula)
+          PYEOF
 
-            if [ -n "$URL" ] && [ "$URL" != "null" ] && [ -n "$SHA256" ] && [ "$SHA256" != "null" ]; then
-              echo "Found sdist on PyPI!"
-              break
-            fi
-
-            echo "Still waiting for PyPI to index sdist... (Attempt $i/20)"
-            sleep 30
-          done
-
-          if [ -z "$URL" ] || [ "$URL" = "null" ]; then
-            echo "Error: Timed out waiting for sdist on PyPI"
-            exit 1
-          fi
-
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
-
-      - name: Update formula
-        run: |
-          sed -i "s|url \".*\"|url \"${{ steps.meta.outputs.url }}\"|" tap/Formula/qcp.rb
-          sed -i "s|sha256 \".*\"|sha256 \"${{ steps.meta.outputs.sha256 }}\"|" tap/Formula/qcp.rb
-
-      - name: Commit and push formula update
+      - name: Commit and push
         working-directory: tap
         run: |
           git config user.name "qcp-release-bot"
           git config user.email "actions@github.com"
-          git commit -am "qcp ${{ steps.meta.outputs.version }}" || echo "no changes"
+          git commit -am "qcp ${GITHUB_REF_NAME#v}"
           git push origin main
-

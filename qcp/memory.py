@@ -55,7 +55,7 @@ class JsonSchemaMemoryStore(SchemaMemoryStore):
         try:
             value = json.loads(self.path.read_text(encoding="utf-8"))
             return value if isinstance(value, dict) else {}
-        except json.JSONDecodeError, OSError:
+        except (json.JSONDecodeError, OSError):
             return {}
 
     def recall(self, database_id: str) -> SchemaSnapshot | None:

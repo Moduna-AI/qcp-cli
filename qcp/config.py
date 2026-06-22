@@ -31,7 +31,7 @@ def load() -> dict[str, Any]:
     try:
         raw_data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
         return QcpConfig.model_validate(raw_data).model_dump(mode="json", exclude_none=True)
-    except json.JSONDecodeError, OSError, ValidationError:
+    except (json.JSONDecodeError, OSError, ValidationError):
         return {}
 
 
