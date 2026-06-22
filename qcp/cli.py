@@ -14,6 +14,8 @@ from qcp.errors import QcpError
 from qcp.llm import GeminiChatModelFactory
 from qcp.memory import JsonSchemaMemoryStore
 from qcp.output import format_table
+from qcp.spinner import run_with_spinner
+from qcp.telemetry import ask_consent, set_consent, track
 
 
 def _print_err(msg: str) -> None:
@@ -21,17 +23,33 @@ def _print_err(msg: str) -> None:
     click.secho(msg, fg="red", err=True)
 
 
-@click.group()
+@click.group(
+    epilog=(
+        "Privacy & Security:\n"
+        "  \b\n\n"
+        "  🔒 qcp never collects your schema, queries, or database data. "
+        "Only anonymous usage events are recorded to improve the tool.\n"
+        "  To opt out: qcp config --telemetry off\n"
+    ),
+)
 @click.version_option(__version__, prog_name="qcp")
 def main() -> None:
     """QCP - your CLI companion for querying Postgres in plain English."""
+    ask_consent()  # only prompts once, skips if already answered
+    track("cli_invoked")
 
 
 @main.command()
-@click.option("--database-url", "-d", default=None, help="Postgres connection string. Prompted if omitted.")
+@click.option(
+    "--database-url",
+    "-d",
+    default=None,
+    help="Postgres connection string. Prompted if omitted.",
+)
 @click.option("--force", is_flag=True, help="Overwrite existing configuration without asking.")
 def init(database_url: str | None, force: bool) -> None:
     """Connect QCP to a Postgres database."""
+    track("init")
     existing = cfg.get_db_url()
     if (
         existing
@@ -62,6 +80,7 @@ def init(database_url: str | None, force: bool) -> None:
 @click.option("--model", default=None, help="Override the Gemini model (e.g. gemini-2.5-flash).")
 def auth(key: str | None, remove: bool, skip_validate: bool, model: str | None) -> None:
     """Add (or remove) your Gemini API key."""
+    track("auth")
     if remove:
         cfg.unset_key("gemini_api_key")
         click.secho("Removed stored Gemini API key.", fg="green")
@@ -93,19 +112,25 @@ def auth(key: str | None, remove: bool, skip_validate: bool, model: str | None) 
 
 @main.command()
 @click.argument("question", nargs=-1, required=True)
-@click.option("--show-sql/--no-show-sql", default=True, help="Print the generated SQL before running it.")
+@click.option(
+    "--show-sql/--no-show-sql",
+    default=True,
+    help="Print the generated SQL before running it.",
+)
 @click.option("--dry-run", is_flag=True, help="Only generate and print SQL, don't execute it.")
 def query(question: tuple[str, ...], show_sql: bool, dry_run: bool) -> None:
     """Ask a question about your data in plain English.
 
     Example: qcp query "what were the top 5 products by revenue last month?"
     """
+    track("query")
     question_text = " ".join(question)
     db_url = db.require_db_url()
 
-    click.echo("Reading schema...")
-    click.echo("Running database agent...")
-    result = _create_agent(db_url).query(question_text, dry_run=dry_run)
+    result = run_with_spinner(
+        "Running database agent...",
+        lambda: _create_agent(db_url).query(question_text, dry_run=dry_run),
+    )
     sql = result.query_result.sql
 
     if show_sql or dry_run:
@@ -122,10 +147,13 @@ def query(question: tuple[str, ...], show_sql: bool, dry_run: bool) -> None:
 
 @main.command()
 @click.option(
-    "--from-question", default=None, help="Base insights on the results of this question instead of just the schema."
+    "--from-question",
+    default=None,
+    help="Base insights on the results of this question instead of just the schema.",
 )
 def insights(from_question: str | None) -> None:
     """Get AI-generated analytics and insights about your database."""
+    track("insights")
     db_url = db.require_db_url()
     database_agent = _create_agent(db_url)
     if from_question:
@@ -145,12 +173,23 @@ def status() -> None:
     db_url = cfg.get_db_url()
     api_key = cfg.get_gemini_api_key()
     provider = cfg.get_provider()
+    track("status")
 
     click.echo(f"Config file:  {cfg.config_path()}")
     click.echo(f"Database:     {_mask(db_url) if db_url else 'not configured (run `qcp init`)'}")
     click.echo(f"AI provider:  {provider}")
     click.echo(f"Model:        {llm.get_model()}")
     click.echo(f"API key:      {'configured' if api_key else 'not configured (run `qcp auth`)'}")
+
+
+@main.command()
+@click.option("--telemetry", type=click.Choice(["on", "off"]), help="Enable or disable telemetry.")
+def config(telemetry: str) -> None:
+    """Manage qcp configuration."""
+    if telemetry == "on":
+        set_consent(True)
+    elif telemetry == "off":
+        set_consent(False)
 
 
 def _mask(url: str) -> str:

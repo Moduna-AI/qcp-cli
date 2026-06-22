@@ -1,5 +1,13 @@
 # qcp — Query Companion
 
+![PyPI Downloads](https://img.shields.io/pypi/dm/qcp-cli?style=flat-square&label=pip%20installs)
+![Downloads](https://img.shields.io/github/downloads/Moduna-AI/qcp/total?style=flat-square&label=downloads)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/qcp-cli?style=flat-square&label=pip%20installs)](https://pypi.org/project/qcp-cli)
+[![PyPI Version](https://img.shields.io/pypi/v/qcp-cli?style=flat-square)](https://pypi.org/project/qcp-cli)
+[![License](https://img.shields.io/github/license/Moduna-AI/qcp?style=flat-square)](LICENSE)
+![CI](https://img.shields.io/github/actions/workflow/status/Moduna-AI/qcp-cli/ci.yml?style=flat-square&label=ci)
+[![Release](https://img.shields.io/github/v/release/Moduna-AI/qcp-cli?style=flat-square&label=release)](https://github.com/Moduna-AI/qcp/releases)
+
 Query your Postgres database in plain English, right from the terminal.
 
 ```
@@ -24,9 +32,7 @@ Globex Inc      39120.00
 (5 rows)
 ```
 
-`qcp` uses a LangChain database agent powered by Google Gemini 2.5 Flash to
-translate your question into a read-only SQL query, run it, print the exact
-results, and explain the answer in plain language.
+`qcp` is private, secure, safe and runs locally.
 
 ## Features
 
@@ -44,27 +50,37 @@ QCP requires Python 3.14 or newer.
 ### macOS / Linux (curl)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Moduna-AI/qcp-cli/main/scripts/install.sh | bash
+curl -L https://github.com/Moduna-AI/qcp-cli/releases/latest/download/qcp-linux-x86_64 -o qcp
+chmod +x qcp
+sudo mv qcp /usr/local/bin/
 ```
 
 ### macOS (Homebrew)
 
 ```bash
-brew tap Moduna-AI/qcp-cli
-brew install qcp
+brew tap moduna-ai/qcp
+brew install moduna-ai/qcp/qcp
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/Moduna-AI/qcp-cli/main/scripts/install.ps1 | iex
+Invoke-WebRequest -Uri "https://github.com/Moduna-AI/qcp-cli/releases/latest/download/qcp-windows-x86_64.exe" -OutFile "qcp.exe"
+Move-Item qcp.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\qcp.exe"
 ```
 
 ### Via pip (any platform)
 
 ```bash
-pip install qcp
+pip install qcp-cli
 ```
+
+### Via uv
+
+```bash
+uv tool install qcp-cli
+```
+
 
 ## Quickstart
 
