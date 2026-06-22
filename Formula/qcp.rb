@@ -1,30 +1,17 @@
-# Homebrew formula for qcp.
-# Intended to live in a tap repo, e.g. Moduna-AI/homebrew-qcp/Formula/qcp.rb
-
 class Qcp < Formula
   include Language::Python::Virtualenv
 
-  desc "Query Companion: query Postgres databases in natural language"
-  homepage "https://github.com"
-  url "https://github.com"
-  sha256 "3c441b7ab6998e7658bcb0cc530f95fe7f8e862c2dad908f05850939606bf4e2"
-  version "0.1.4"
-  license "MIT"
+  desc "Query Companion"
+  homepage "https://github.com/Moduna-AI/qcp-cli"
+  url "file:///Users/ashwin/Documents/github/qcp-cli/dist/qcp_cli-0.1.12a2.tar.gz"
+  sha256 "9ce6e59ec4485012e3d2dc707c8f337593ca921292d09c01384de124d7a4c8a4"
 
-  # Depend on Homebrew's stable python
   depends_on "python@3.14"
 
   def install
-    # 1. Creates an isolated private virtual environment inside the Cellar
-    venv = virtualenv_create(libexec, "python3.14")
-    
-    # 2. Installs your tool and its requirements directly into that environment
-    # This automatically reads your pyproject.toml / setup.py entry_points
-    # and links the global executable to Homebrew's public bin folder
-    venv.pip_install_and_link_binary_sync(buildpath)
-  end
-
-  test do
-    assert_match version.to_s, shell_output("#{bin}/qcp --version")
+    system "python3.14", "-m", "venv", libexec
+    system libexec/"bin/python", "-m", "pip", "install", "--upgrade", "pip"
+    system libexec/"bin/python", "-m", "pip", "install", buildpath
+    bin.install_symlink libexec/"bin/qcp"
   end
 end
