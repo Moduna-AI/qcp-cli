@@ -44,9 +44,6 @@ jobs:
           - os: macos-latest
             arch: arm64
             artifact: qcp-macos-arm64
-          - os: macos-13
-            arch: x86_64
-            artifact: qcp-macos-x86_64
           - os: ubuntu-latest
             arch: x86_64
             artifact: qcp-linux-x86_64
