@@ -53,7 +53,7 @@ jobs:
       - run: uv python install 3.13
 
       - name: Build binary
-        run: uv run --with pyinstaller pyinstaller --onefile --name qcp-${{ matrix.arch }} src/qcp/cli.py
+        run: uv run --with pyinstaller pyinstaller --onefile --name qcp-${{ matrix.arch }} qcp/cli.py
 
       - uses: actions/upload-artifact@v4.6.1
         with:
