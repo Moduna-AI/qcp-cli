@@ -3,7 +3,13 @@ name: Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
+  pull_request:
+    branches:
+      - "release/v*-alpha*"
+      - "release/v*-beta*"
+      - "release/v*-canary*"
+    types: [closed]
 
 permissions:
   contents: write
